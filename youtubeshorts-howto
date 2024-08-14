@@ -42,6 +42,7 @@ install the most recent version of yt-dlp directly from master repository, and
 use os.system() function and call yt-dlp directly (temp solution):
 
 python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
+or sudo if you want all over Operating system
 
 Either at this time non off youtube_dl or pafy work.
 

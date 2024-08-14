@@ -7,6 +7,7 @@ import sys
 import os
 import os.path
 import time
+from pytube import YouTube
 import cv2
 
 #import youtube_dl #didn't work
@@ -74,6 +75,9 @@ def verbose(args, custom_msg):
     if args.verbose:
        print(custom_msg)
 
+def check_file_exists(file_path):
+    return os.path.exists(file_path)
+
 def get_authenticated_service(args, api_key):
     verbose(args, "Authenticating YouTube service...")
     return build('youtube', 'v3', developerKey=api_key)
@@ -129,12 +133,39 @@ def save_to_json(args, video_ids, output_file):
     with open(output_file, 'w') as json_file:
         json.dump(video_ids, json_file, indent=2)
 
-def create_nfo_file(args, video_info_list, output_directory):
 
+
+def download_video_and_create_nfo(args, video_info_list, output_directory):
+    verbose(args, "Downloading video and creating nfo file")
+
+    tmp = 1
     for video_info in video_info_list:
         video_id = video_info['video_id']
         video_title = video_info['video_title']
         published_date = video_info['published_date']
+
+        #try:
+        #    yt = YouTube(f'https://www.youtube.com/watch?v={video_id}')
+        #    stream = yt.streams.get_highest_resolution()
+        video_filename = f"{video_id}"
+            #if not check_file_exists(os.path.join(output_directory,video_filename)):
+            #    print(f"Downloading video {video_filename}")
+
+                # doesn't work, so back to dirty way, call terminal!
+                #stream.download(output_path=output_directory, filename=video_filename)
+        url = f"https://www.youtube.com/watch?v={video_id}"
+        print(f"downloading ({tmp}): {url}")
+        os.system(f"old_dir=$(pwd) && cd $old_dir/{output_directory} && yt-dlp -o {video_filename} {url} && cd $old_dir")
+        tmp += 1
+
+
+                #print(f"Done {video_filename}")
+            #else:
+            #    print(f"{video_filename} exist, skipping")
+        #except Exception as e:
+        #    print(f"Error downloading video {video_id}: {str(e)}")
+        #    sys.exit()
+        #continue
 
         # Create the NFO content
         nfo_content = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -144,16 +175,16 @@ def create_nfo_file(args, video_info_list, output_directory):
             <!-- Other tags if needed -->
         </video>
         """
-
         # Write the NFO content to a file
         nfo_filename = f"{video_id}.nfo"
         nfo_filepath = os.path.join(output_directory, nfo_filename)
         with open(nfo_filepath, 'w', encoding='utf-8') as nfo_file:
             nfo_file.write(nfo_content)
 
-    verbose(args, f"Created {nfo_filename}")
+        print(f"Created {nfo_filename}")
 
-  
+        sys.exit()
+        
 def get_channel_video_count(service, channel_id):
     request = service.channels().list(
         part='statistics',
@@ -193,21 +224,6 @@ def save_file(args, filename, content):
         print(f"Content saved to {filename} successfully!")
     except Exception as e:
         print(f"Error saving content to {filename}: {e}")
-
-
-def parse_json_file(json_filename):
-    
-    if not os.path.exists(json_filename):
-        print(f"Error: File '{json_filename}' does not exist.")
-        sys.exit(1)
-
-    try:
-        with open(json_filename, "r") as json_file:
-            data = json.load(json_file)
-            return data
-    except json.JSONDecodeError:
-        print(f"Error decoding JSON content in '{json_filename}'.")
-        sys.exit(1)
 
 
 def get_random_video_id(args, api_key, channel):
@@ -305,8 +321,6 @@ def create_working_directory(working_directory):
 #    except Exception as e:
 #        print(f"Error executing command: {e}"
 
-def check_file_exists(file_path):
-    return os.path.exists(file_path)
                   
 def download_youtube_segment(video_id, video_url, working_directory):
  
@@ -455,12 +469,17 @@ def main():
         fetch_videos = get_video_ids(args, api_key, channel, how_many)
         save_to_json(args, fetch_videos, json_filename)
 
-    else:
-        confirm_overwrite(args, json_filename)
+    #else:
+    #    confirm_overwrite(args, json_filename)
           
     if not check_file_exists(json_filename):
         print(f"{json_filename} not found!\nTry {PROGNA} --offline 0 , see -h --help")
         sys.exit(1)
+    
+    with open(json_filename, 'r') as json_file:
+        video_info_list = json.load(json_file)
+
+    download_video_and_create_nfo(args, video_info_list, working_directory)
 
     #print(f"Creating {json_filename}")
     #save_file(args, json_filename, fetch_videos)
