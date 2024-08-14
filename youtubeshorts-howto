@@ -43,5 +43,5 @@ use os.system() function and call yt-dlp directly (temp solution):
 
 python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 
-Either at this time youtube_dl or pafy work.
+Either at this time non off youtube_dl or pafy work.
 

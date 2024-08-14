@@ -31,7 +31,7 @@ COPYRIGHT = "(c) 2024 by Mr. Tecoman"
 VIDEOS_DIRECTORY = "videos_directory"
 SECRETS = "secrets"
 SHORT_LENGTH = 60
-HOW_MANY = 500
+HOW_MANY = 1000
 CROP_SECONDS = 5
 OFFLINE  = 1
 JSON_FILENAME = "youtubeshorts.json"
@@ -78,28 +78,82 @@ def get_authenticated_service(args, api_key):
     verbose(args, "Authenticating YouTube service...")
     return build('youtube', 'v3', developerKey=api_key)
 
-def get_video_ids(args, api_key, channel_id):
-    verbose(args, "Getting Video IDS")
-    
-    # Initialize the YouTube Data API client
-    youtube = get_authenticated_service(args, api_key)
 
-    # Retrieve the list of videos from the channel
-    request = youtube.search().list(
-        part="id",
-        channelId=channel_id,
-        maxResults=50,  # Adjust as needed
-        type="video"
-    )
-    sys.exit()
+def get_video_ids(args, api_key, channel, how_many):
+    verbose(args,f"Getting {how_many} video ids ...")
+    base_url = 'https://youtube.googleapis.com/youtube/v3/search'
+    max_results = how_many  # You can adjust this as needed
+    video_ids = []
 
-    response = request.execute()
+    # Initial request
+    params = {
+        'part': 'snippet',
+        'channelId': channel,
+        'maxResults': max_results,
+        'order': 'date',
+        'type': 'video',
+        'key': api_key
+    }
+    response = requests.get(url=base_url, params=params).json()
 
-    # Extract video IDs
-    video_ids = [item["id"]["videoId"] for item in response.get("items", [])]
+    # Extract video information
+    for item in response.get('items', []):
+        video_id = item['id']['videoId']
+        video_title = item['snippet']['title']
+        published_date = item['snippet']['publishedAt']
+        video_ids.append({
+            'video_id': video_id,
+            'video_title': video_title,
+            'published_date': published_date
+        })
+
+    # Handle pagination
+    while 'nextPageToken' in response:
+        next_page_token = response['nextPageToken']
+        params['pageToken'] = next_page_token
+        response = requests.get(url=base_url, params=params).json()
+        for item in response.get('items', []):
+            video_ids.append(item['id']['videoId'])
+            video_title = item['snippet']['title']
+            published_date = item['snippet']['publishedAt']
+            video_ids.append({
+                'video_id': video_id,
+                'video_title': video_title,
+                'published_date': published_date
+                })
 
     return video_ids
 
+def save_to_json(args, video_ids, output_file):
+    verbose(args, f"Saving {output_file}")
+    with open(output_file, 'w') as json_file:
+        json.dump(video_ids, json_file, indent=2)
+
+def create_nfo_file(args, video_info_list, output_directory):
+
+    for video_info in video_info_list:
+        video_id = video_info['video_id']
+        video_title = video_info['video_title']
+        published_date = video_info['published_date']
+
+        # Create the NFO content
+        nfo_content = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <video>
+            <title>{video_title}</title>
+            <published_date>{published_date}</published_date>
+            <!-- Other tags if needed -->
+        </video>
+        """
+
+        # Write the NFO content to a file
+        nfo_filename = f"{video_id}.nfo"
+        nfo_filepath = os.path.join(output_directory, nfo_filename)
+        with open(nfo_filepath, 'w', encoding='utf-8') as nfo_file:
+            nfo_file.write(nfo_content)
+
+    verbose(args, f"Created {nfo_filename}")
+
+  
 def get_channel_video_count(service, channel_id):
     request = service.channels().list(
         part='statistics',
@@ -288,7 +342,17 @@ def ON_OFF(args, mode):
 
     #verbose(args, f"{msg} mode")
     return msg
- 
+
+def confirm_overwrite(args, overwrite_filename):
+     if check_file_exists(overwrite_filename):
+        while True:
+            user_choice = input(f"The file '{overwrite_filename}' already exists. Do you want to overwrite it? (yes) or enter to abort: ").lower()
+                   
+            if user_choice == "yes":
+                return
+            
+            sys.exit(0)
+
 def main():
 
     args = parse_args()
@@ -369,12 +433,12 @@ def main():
     verbose(args, f"secret filename: {secret_file}")
 
     verbose(args, f"Offline mode: {ON_OFF(args, offline)}")
-    verbose(args, f"Generated Short Filename: {short_filename}")
+    verbose(args, f"GeneFilename: {short_filename}")
     verbose(args, f"Working directory: {working_directory}")
     verbose(args, f"Calculated number of videos: {number_videos}")
     
     print(f"Creating {working_directory}\n")
-    
+
     create_working_directory(working_directory)
 
     if how_many <= number_videos:
@@ -384,22 +448,22 @@ def main():
         print(f"{short_lenght}-second video lenght you requested.\n")
 
     if not offline:
-        fetch_videos = get_video_ids(args, api_key, channel)
+        #fetch_videos = get_video_ids(args, api_key, channel)
+        verbose(args, f"Getting {how_many} from channel {masked_msg(channel)}")
+        confirm_overwrite(args, json_filename)
+        
+        fetch_videos = get_video_ids(args, api_key, channel, how_many)
+        save_to_json(args, fetch_videos, json_filename)
+
     else:
-        if check_file_exists(json_filename):
-            while True:
-                user_choice = input(f"The file '{json_filename}' already exists. Do you want to overwrite it? (yes): ").lower()
-                   
-                if user_choice == "yes":
-                    break
-                sys.exit(0)
-  
+        confirm_overwrite(args, json_filename)
+          
     if not check_file_exists(json_filename):
         print(f"{json_filename} not found!\nTry {PROGNA} --offline 0 , see -h --help")
         sys.exit(1)
 
-    print(f"Creating {json_filename}")
-    save_file(args, json_filename, fetch_videos)
+    #print(f"Creating {json_filename}")
+    #save_file(args, json_filename, fetch_videos)
 
     sys.exit()
     
