@@ -1,3 +1,4 @@
+This is how you install:
 
 Enable the YouTube Data API:
 In your project, navigate to the “APIs & Services” > “Library” section.
@@ -8,5 +9,39 @@ Create a new OAuth 2.0 client ID.
 Choose “Desktop app” as the application type.
 Note down the generated client ID and client secret.
 
+Go to youtube and copy channel id, now create a new file call it 'secrets'
+with this content:
+api_key = YOUR_API_KEY
+channel = YOUR_CHANNEL_ID
+
+or you can call youtubeshorts.py with the parameters: 
+$ youtubeshort2.py -a YOUR_API_KEY -yd YOUR_CHANNEL_ID
+
+see -h --help for info.
+
+
 pip install google-api-python-client
+
+Since i got some problems with youtube_dl i install directrly from yt-dlp mastermy version of 
+linux (windows 11 with ubuntu) give me this error:  Error: Error: Unable to extract uploader id
+at this time, i did need to make a dirty trick to make it work, here is what i did:
+
+$ echo $(date)
+Wed Aug 14 08:15:40 CST 2024
+$ uname -a
+Linux DESKTOP-0F5KRLC 5.15.153.1-microsoft-standard-WSL2 #1 SMP Fri Mar 29 23:14:13 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+$ cat /etc/issue
+Ubuntu 20.04.6 LTS \n \l
+$ python3 --version
+Python 3.8.10
+$ pip3 --version
+pip 20.0.2 from /usr/lib/python3/dist-packages/pip (python 3.8)
+
+Into new changes are push to this version of ubuntu in wsl image in windows 11, i
+install the most recent version of yt-dlp directly from master repository, and
+use os.system() function and call yt-dlp directly (temp solution):
+
+python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
+
+Either at this time youtube_dl or pafy work.
 

@@ -8,16 +8,14 @@ import os
 import os.path
 import time
 import cv2
-#import youtube_dl
 
-#import pafy
-
-
-
+#import youtube_dl #didn't work
+#import pafy #not found
 from pathlib import Path
-
 import google.oauth2.credentials
 from googleapiclient.discovery import build
+import googleapiclient.discovery
+
 
 # > < =
 PROGNA = f"{sys.argv[0]}"
@@ -29,27 +27,41 @@ YOUTUBE_CHANNEL = "https://www.youtube.com/@MrTecoman"
 GITHUB="https://github.com/mrtecoman/youtubeshorts"
 COPYRIGHT = "(c) 2024 by Mr. Tecoman"
 
+#defaults
+VIDEOS_DIRECTORY = "videos_directory"
+SECRETS = "secrets"
+SHORT_LENGTH = 60
+HOW_MANY = 500
+CROP_SECONDS = 5
+OFFLINE  = 1
+JSON_FILENAME = "youtubeshorts.json"
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=f"""
-                                                    {TITLE} Ver. {VERSION} Create a Youtube #shorts video (less than 60 seconds)
+                                                    {TITLE} Ver. {VERSION} Create a Youtube #shorts video (less than {SHORT_LENGTH} seconds)
                                                     from videos found in channel using your “YouTube Data API”
-                                                    The video will be done using files found in 'videos_directory'.
+                                                    The video will be done using files found in '{VIDEOS_DIRECTORY}'.
 
-                                                    You can specify çhannel and api_key by creating 'secrets' file
+                                                    You can specify çhannel and api_key by creating ´{SECRETS}' file
                                                     with this content:
                                     
                                                     api_key = YOUR_API_KEY_HERE
                                                     channel = YOUR_CHANNEL_ID_HERE
 
-                                                    or directly as arguments, see -h --help for more information.""", allow_abbrev=False)
-    parser.add_argument("-a", "--api_key", required=False, help="YouTube Data API, default content in 'secrets' file")
-    parser.add_argument("-ch", "--channel", required=False, help="YouTube channel id, default content in 'secrets' file")
-    parser.add_argument("-yd", "--videos_directory", default="videos_directory", help="Working Directory (default: 'videos_directory')")
-    parser.add_argument("-sl", "--short_length", type=int, default=60, help="Short video length in seconds (default: 60)")
-    parser.add_argument("-hm", "--how_many", type=int, default=100, help="How many videos to request (default: 100)")
-    parser.add_argument("-cs", "--crop_seconds", type=int, default=2, help="Crop duration in seconds (default: 2)")
-    parser.add_argument("-o", "--offline", type=int, default=1, help="Triggers offline mode, uses json file (default: on)")
-    parser.add_argument("-j", "--json_filename", default="youtubeshorts.json", help="Sets working JSON file (default: 'youtubeshorts.json')")
+                                                    or directly as arguments, see
+                                                     {PROGNA} --help 
+                                                     
+                                                     for more information.""", allow_abbrev=False)
+    parser.add_argument("-a", "--api_key", required=False, help=f"YouTube Data API, default content in '{SECRETS}' file")
+    parser.add_argument("-ch", "--channel", required=False, help=f"YouTube channel id, default content in '{SECRETS}' file")
+    parser.add_argument("-yd", "--videos_directory", default=f"{VIDEOS_DIRECTORY}", help=f"Working Directory (default: '{VIDEOS_DIRECTORY}')")
+    parser.add_argument("-sl", "--short_length", type=int, default={SHORT_LENGTH}, help=f"Short video length in seconds (default: {SHORT_LENGTH})")
+    parser.add_argument("-hm", "--how_many", type=int, default={HOW_MANY}, help=f"How many videos to request (default: {HOW_MANY})")
+    parser.add_argument("-cs", "--crop_seconds", type=int, default={CROP_SECONDS}, help=f"Crop duration in seconds (default: {CROP_SECONDS})")
+    parser.add_argument("-o", "--offline", type=int, default={OFFLINE}, help=f"Triggers offline mode (0: online, 1: offline), (default: {OFFLINE})")
+    parser.add_argument("-j", "--json_filename", default=f"{JSON_FILENAME}", help=f"Sets working JSON file (default: '{JSON_FILENAME}')")
+    parser.add_argument("-s", "--secret", default=f"{SECRETS}", help=f"Path to {SECRETS} file (default: '{SECRETS}')")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode (default: no verbose)")
     parser.add_argument("-c", "--credits", action="store_true", help="Display Credits")
 
@@ -61,6 +73,73 @@ def parse_args():
 def verbose(args, custom_msg):
     if args.verbose:
        print(custom_msg)
+
+def get_authenticated_service(args, api_key):
+    verbose(args, "Authenticating YouTube service...")
+    return build('youtube', 'v3', developerKey=api_key)
+
+def get_video_ids(args, api_key, channel_id):
+    verbose(args, "Getting Video IDS")
+    
+    # Initialize the YouTube Data API client
+    youtube = get_authenticated_service(args, api_key)
+
+    # Retrieve the list of videos from the channel
+    request = youtube.search().list(
+        part="id",
+        channelId=channel_id,
+        maxResults=50,  # Adjust as needed
+        type="video"
+    )
+    sys.exit()
+
+    response = request.execute()
+
+    # Extract video IDs
+    video_ids = [item["id"]["videoId"] for item in response.get("items", [])]
+
+    return video_ids
+
+def get_channel_video_count(service, channel_id):
+    request = service.channels().list(
+        part='statistics',
+        id=channel_id
+    )
+    response = request.execute()
+
+    video_count = int(response['items'][0]['statistics']['videoCount'])
+    return video_count
+
+def get_video_info(service, video_id):
+    print(f"Fetching details for video ID: {video_id}...")
+    request = service.videos().list(
+        part='snippet,contentDetails',
+        id=video_id
+    )
+    response = request.execute()
+
+    video_snippet = response['items'][0]['snippet']
+    video_duration = response['items'][0]['contentDetails']['duration']
+
+    video_info = {
+        'title': video_snippet['title'],
+        'url': f'https://www.youtube.com/watch?v={video_id}',
+        'duration': video_duration
+    }
+    return video_info
+
+
+
+def save_file(args, filename, content):
+    verbose(args, f"Saving: {filename}")
+
+    try:
+        with open(filename, "w") as file:
+            file.write(content)
+        print(f"Content saved to {filename} successfully!")
+    except Exception as e:
+        print(f"Error saving content to {filename}: {e}")
+
 
 def parse_json_file(json_filename):
     
@@ -104,9 +183,10 @@ def generate_shorts_filename():
     filename = f"YoutubeShorts-{formatted_date}.mkv"
     return filename
 
-def calculate_videos(short_lenght, crop_seconds):
+def calculate_videos(args, short_lenght, crop_seconds):
+    verbose(args, "Calculating videos")
 
-    if crop_seconds <= 0 or short_lenght<= 0:
+    if (crop_seconds <= 0) or (short_lenght <= 0):
         return 0
 
     return short_lenght // crop_seconds
@@ -199,6 +279,16 @@ def credits():
 def masked_msg(msg):
     return len(msg) * "*"
 
+def ON_OFF(args, mode):
+ 
+    if not mode:
+        msg = "ONLINE"
+    else:
+        msg = "OFFLINE"
+
+    #verbose(args, f"{msg} mode")
+    return msg
+ 
 def main():
 
     args = parse_args()
@@ -220,18 +310,21 @@ def main():
     if args.credits:
         credits()
 
+    secret_file = args.secret
+
+
     #check for channel_id and api_id are not in arguments
     if not args.channel or not args.api_key:
         #open secrets
-        verbose(args, "channel_id or api_id not found in command line, trying opening 'secrets' file")
+        verbose(args, f"channel_id or api_id not specify, trying '{secret_file}' file")
 
         # Create an empty dictionary
         secret = {}
 
-        if check_file_exists("secrets"):
-            verbose(args, "'secrets' file found, trying to read values")
+        if check_file_exists(f"{secret_file}"):
+            verbose(args, f"'{secret_file}' file found, trying to read values")
 
-            with open("secrets", "r") as file:
+            with open(f"{secret_file}", "r") as file:
                 for line in file:
                     key, value = line.strip().split("=")
                     secret[key.strip()] = value.strip()
@@ -255,52 +348,34 @@ def main():
         print(f"{PROGNA} -h")
         sys.exit(1)
 
-    short_lenght = args.short_length
-    crop_seconds = args.crop_seconds
-    how_many = args.how_many
+    #convert type 'set' to 'int'
+    short_lenght = int(args.short_length.pop())
+    crop_seconds = int(args.crop_seconds.pop())
+    how_many = int(args.how_many.pop())
+
     short_filename = generate_shorts_filename()
     working_directory = args.videos_directory
-    number_videos = calculate_videos(short_lenght, crop_seconds)
+    secret_file = args.secret
+    number_videos = calculate_videos(args, short_lenght, crop_seconds)
     json_filename = args.json_filename
     offline = args.offline
 
-    verbose(args, f"API Key: {masked_msg(api_key)}")
+    verbose(args, f"\nAPI Key: {masked_msg(api_key)}")
     verbose(args, f"Channel ID: {masked_msg(channel)}")
     verbose(args, f"How many videos to request: {how_many}")
     verbose(args, f"Short Video Length: {short_lenght}")
     verbose(args, f"Crop Seconds: {crop_seconds}")
     verbose(args, f"JSON filename: {json_filename}")
-    verbose(args, f"Offline mode: {offline}")
+    verbose(args, f"secret filename: {secret_file}")
+
+    verbose(args, f"Offline mode: {ON_OFF(args, offline)}")
     verbose(args, f"Generated Short Filename: {short_filename}")
     verbose(args, f"Working directory: {working_directory}")
     verbose(args, f"Calculated number of videos: {number_videos}")
-    sys.exit()
-    print(f"Creating {working_directory}")
-    create_working_directory(working_directory)
-
-    print(f"\nGetting videos from {channel}")
-
-    #create a VideoWriter object
-    #video_writer = cv2.VideoWriter(short_filename, fourcc, frame_rate, frame_size)
-
-    video_id = "HoPgo8UDuqM"
-    #video_urls = []
-    for n in range(0,6):
-        new_video_url = generate_cropped_youtube_url(video_id, crop_seconds)
-        print(f"Downloading {new_video_url}")
-
-        #if n < 9:
-        #    part_segment = f"0{n}"
-        #else:
-        #    part_segment = f"{n}"
-
-        download_youtube_segment(video_id, new_video_url, working_directory)
-        #video_urls.append(new_video_url)
-
-    #print(generate_cropped_youtube_url(video_id, crop_seconds))
-    #download_and_combine_videos(video_urls, short_filename)
     
-    sys.exit(1)
+    print(f"Creating {working_directory}\n")
+    
+    create_working_directory(working_directory)
 
     if how_many <= number_videos:
         print(f"\nAccording to my calculations, you need at least {number_videos} videos, but you request only {how_many} videos.")
@@ -309,9 +384,9 @@ def main():
         print(f"{short_lenght}-second video lenght you requested.\n")
 
     if not offline:
-        fetch_videos = get_random_video_id(args, api_key, channel)
+        fetch_videos = get_video_ids(args, api_key, channel)
     else:
-        if os.path.exists(json_filename):
+        if check_file_exists(json_filename):
             while True:
                 user_choice = input(f"The file '{json_filename}' already exists. Do you want to overwrite it? (yes): ").lower()
                    
@@ -319,19 +394,25 @@ def main():
                     break
                 sys.exit(0)
   
+    if not check_file_exists(json_filename):
+        print(f"{json_filename} not found!\nTry {PROGNA} --offline 0 , see -h --help")
+        sys.exit(1)
 
-        print(f"Creating {json_filename}")
+    print(f"Creating {json_filename}")
+    save_file(args, json_filename, fetch_videos)
 
-        fetch_videos = get_random_video_id(args, api_key, channel)
+    sys.exit()
+    
+    fetch_videos = get_random_video_id(args, api_key, channel)
 
-        try:
-            with open(json_filename, "w") as json_file:
-                json.dump(fetch_videos, json_file, indent=4)  # Write data to the file
-                print(f"Data successfully saved to '{json_filename}'.")
+    try:
+        with open(json_filename, "w") as json_file:
+            json.dump(fetch_videos, json_file, indent=4)  # Write data to the file
+            print(f"Data successfully saved to '{json_filename}'.")
         
-        except json.JSONDecodeError:
-            print(f"Error saving JSON content to '{json_filename}'.")
-            sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"Error saving JSON content to '{json_filename}'.")
+        sys.exit(1)
 
 
     print(f"Working with: {json_filename}")
