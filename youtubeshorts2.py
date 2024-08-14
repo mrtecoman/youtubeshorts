@@ -26,7 +26,7 @@ VERSION = "1.0b"
 AUTHOR = "Mr Tecoman"
 EMAIL = "mrtecomancolima@gmail.com"
 YOUTUBE_CHANNEL = "https://www.youtube.com/@MrTecoman"
-GITHUB=""
+GITHUB="https://github.com/mrtecoman/youtubeshorts"
 COPYRIGHT = "(c) 2024 by Mr. Tecoman"
 
 def parse_args():
