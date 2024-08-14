@@ -1,0 +1,12 @@
+
+Enable the YouTube Data API:
+In your project, navigate to the “APIs & Services” > “Library” section.
+Search for “YouTube Data API” and enable it.
+Create API Credentials:
+Go to the “APIs & Services” > “Credentials” section.
+Create a new OAuth 2.0 client ID.
+Choose “Desktop app” as the application type.
+Note down the generated client ID and client secret.
+
+pip install google-api-python-client
+
