@@ -8,6 +8,9 @@ import os
 import os.path
 import time
 from pytube import YouTube
+#from moviepy.editor import VideoFileClip
+from moviepy.editor import VideoFileClip, concatenate_videoclips
+
 import cv2
 
 #import youtube_dl #didn't work
@@ -247,7 +250,6 @@ def create_working_directory(working_directory):
                   
 def download_youtube_segment(video_id, video_url, working_directory):
  
-    ##yt-dlp -o test.mkv https://www.youtube.com/watch?v=HoPgo8UDuqM
     if check_file_exists(f"{working_directory}/{video_id}.mkv"):
         print(f"Downloading {video_url}")
         os.system(f"old_dir=$(pwd) && cd $old_dir/{working_directory} && yt-dlp -o {video_id}.mkv {video_url} && cd $old_dir")
@@ -289,6 +291,19 @@ def confirm_overwrite(args, overwrite_filename):
             
             sys.exit(0)
 
+def pick_random_files_by_extension(args, directory_path, extension, num_files):
+   
+    verbose(args, f"Selecting {num_files} random files from {directory_path}/{extension}")
+    try:
+        all_files = os.listdir(directory_path)
+        file_list = [file for file in all_files if os.path.isfile(os.path.join(directory_path, file))]
+        filtered_files = [file for file in file_list if file.lower().endswith(extension.lower())]
+        random_files = random.sample(filtered_files, min(num_files, len(filtered_files)))
+        return random_files
+    except FileNotFoundError:
+        print(f"Directory '{directory_path}' not found.")
+        return []
+
 def main():
 
     args = parse_args()
@@ -326,9 +341,11 @@ def main():
         else:
             print("Fatal Error: No way to know api_key or channel_id. See -h for help.")
             sys.exit(1)
+
         # Now you can access the values using the keys
         api_key = secret.get("api_key")
         channel = secret.get("channel")
+
     else:
         #take them as argument
         api_key = args.api_key
@@ -343,10 +360,10 @@ def main():
         sys.exit(1)
 
     #convert type 'set' to 'int'
-    short_lenght = int(args.short_length.pop())
-    crop_seconds = int(args.crop_seconds.pop())
-    how_many = int(args.how_many.pop())
-    download = int(args.download.pop())
+    short_lenght = args.short_length
+    crop_seconds = args.crop_seconds
+    how_many = args.how_many
+    download = args.download
 
     #rest of variables
     short_filename = generate_shorts_filename()
@@ -368,6 +385,7 @@ def main():
     verbose(args, f"secret filename: {secret_file}")
     verbose(args, f"Download mode: {download}")
     verbose(args, f"Shorts filename: {short_filename}")
+    verbose(args, f"Shorts directory: {shorts_directory}")
     verbose(args, f"Working directory: {working_directory}")
     verbose(args, f"Calculated number of videos: {number_videos}")
     
@@ -376,8 +394,7 @@ def main():
     print(f"Creating {shorts_directory}\n")
     create_working_directory(shorts_directory)
 
-    how_many_videos = sum(1 for entry in os.scandir(f"{working_directory}/*.mkv") if entry.is_file())
-    how_many_shorts = sum(1 for entry in os.scandir(f"{shorts_directory}") if entry.is_file())
+    how_many_videos = sum(1 for entry in os.scandir(f"{working_directory}") if entry.is_file())
 
     if how_many_videos <= number_videos:
         print(f"\nAccording to my calculations, you need at least {number_videos} videos, but you request only {how_many_videos} videos.")
@@ -393,9 +410,6 @@ def main():
         fetch_videos = get_video_ids(args, api_key, channel, how_many, json_filename)
         save_to_json(args, fetch_videos, json_filename)
     
-    #else:
-    #    confirm_overwrite(args, json_filename)
-          
     if not check_file_exists(json_filename):
         print(f"{json_filename} not found!\nTry {PROGNA} --offline 0 , see -h --help")
         sys.exit(1)
@@ -405,26 +419,41 @@ def main():
     if download:
         download_video_and_create_nfo(args, video_info_list, working_directory)
 
-    #print(f"Creating {json_filename}")
-    #save_file(args, json_filename, fetch_videos)
+    print(f"Creating {short_filename}")
+    desired_extension = ".mkv"
 
-    sys.exit()
+    number_videos = number_videos
+    random_files = pick_random_files_by_extension(args, working_directory, desired_extension, number_videos)
     
-    fetch_videos = get_random_video_id(args, api_key, channel)
-
-    try:
-        with open(json_filename, "w") as json_file:
-            json.dump(fetch_videos, json_file, indent=4)  # Write data to the file
-            print(f"Data successfully saved to '{json_filename}'.")
+    if random_files:
+        verbose(args, f"Randomly selected {desired_extension} files:")
         
-    except json.JSONDecodeError:
-        print(f"Error saving JSON content to '{json_filename}'.")
+        # Create a list to save clips
+        all_clips = []
+
+        for filename in random_files:
+            verbose(args, f"adding {filename}")
+
+            video = VideoFileClip(f"{working_directory}/{filename}")
+            duration = video.duration
+            
+            random_start_times = [random.uniform(0, duration - crop_seconds) for _ in range(1)]
+            clips = [video.subclip(start_time, start_time + crop_seconds) for start_time in random_start_times]
+
+            all_clips.extend(clips)
+
+        # Combine all clips in one file MKV
+        final_clip = concatenate_videoclips(all_clips, method="compose")
+        final_clip.write_videofile(f"{shorts_directory}/{short_filename}", codec="libx264")
+        
+        print(f"{shorts_directory}/{short_filename} created.")
+
+    else:
+        print(f"No {desired_extension} files found in the specified directory.")
         sys.exit(1)
 
 
-    print(f"Working with: {json_filename}")
-
-
+    print("Done, enjoy!")
 
 if __name__ == "__main__":
     main()
