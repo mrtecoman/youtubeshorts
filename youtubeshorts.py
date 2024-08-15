@@ -67,7 +67,7 @@ def parse_args():
     parser.add_argument("-hm", "--how_many", type=int, default={HOW_MANY}, help=f"How many videos to request (default: {HOW_MANY})")
     parser.add_argument("-cs", "--crop_seconds", type=int, default={CROP_SECONDS}, help=f"Crop duration in seconds (default: {CROP_SECONDS})")
     parser.add_argument("-o", "--offline", type=int, default={OFFLINE}, help=f"Triggers offline mode, doesn't request a new json file (0: online, 1: offline), (default: {OFFLINE})")
-    parser.add_argument("-d", "--download", action="store_true", help="Download new videos (0: no, 1: yes), (default: {DOWNLOAD})")
+    parser.add_argument("-d", "--download", action="store_true", help=f"Download new videos (0: no, 1: yes), (default: {DOWNLOAD})")
     parser.add_argument("-j", "--json_filename", default=f"{JSON_FILENAME}", help=f"Sets working JSON file (default: '{JSON_FILENAME}')")
     parser.add_argument("-s", "--secret", default=f"{SECRETS}", help=f"Path to {SECRETS} file (default: '{SECRETS}')")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode (default: no verbose)")
