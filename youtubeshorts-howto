@@ -1,5 +1,7 @@
 This is how you install:
 
+pip install -r requirements.txt
+
 Enable the YouTube Data API:
 In your project, navigate to the “APIs & Services” > “Library” section.
 Search for “YouTube Data API” and enable it.
