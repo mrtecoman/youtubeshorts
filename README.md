@@ -10,7 +10,7 @@ The **YouTube Shorts Video Creator** is a Python script that allows you to creat
 ## Usage
 1. Clone this repository.
 2. Install any necessary dependencies (if required) using the `requirements.txt` file.
-3. Run the `youtubeshorts2.py` script with appropriate arguments to configure the Shorts video creation process.
+3. Run the `youtubeshorts.py` script with appropriate arguments to configure the #Shorts video creation process.
 
 ## Arguments
 - `-a`, `--api_key`: YouTube Data API key.
