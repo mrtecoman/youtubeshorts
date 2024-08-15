@@ -170,9 +170,13 @@ def save_to_json(args, video_ids, output_file):
     finally:
         json_file.close()  # Explicitly close the file
 
+def check_video_exists(filepath, desired_extensions):
+  
+    return any(filepath.lower().endswith(ext.lower()) for ext in desired_extensions)
+               
 
+def download_video_and_create_nfo(args, video_info_list, output_directory, desired_extensions):
 
-def download_video_and_create_nfo(args, video_info_list, output_directory):
     verbose(args, "Downloading video and creating nfo file")
 
     tmp = 1
@@ -184,7 +188,7 @@ def download_video_and_create_nfo(args, video_info_list, output_directory):
         video_filename = f"{video_id}"
         mkv_filename = f"{video_id}.mkv"
         mkv_filepath = os.path.join(output_directory, mkv_filename)
-        if not check_file_exists(mkv_filepath):
+        if not check_video_exists(mkv_filepath, desired_extensions):
 
             # doesn't work, so back to dirty way, call terminal!
             #stream.download(output_path=output_directory, filename=video_filename)
@@ -291,18 +295,19 @@ def confirm_overwrite(args, overwrite_filename):
             
             sys.exit(0)
 
-def pick_random_files_by_extension(args, directory_path, extension, num_files):
+def pick_random_files_by_extension(args, directory_path, extensions, num_files):
    
-    verbose(args, f"Selecting {num_files} random files from {directory_path}/{extension}")
+    verbose(args, f"Selecting {num_files} random files from {directory_path} ({', '.join(extensions)})")
     try:
         all_files = os.listdir(directory_path)
         file_list = [file for file in all_files if os.path.isfile(os.path.join(directory_path, file))]
-        filtered_files = [file for file in file_list if file.lower().endswith(extension.lower())]
+        filtered_files = [file for file in file_list if any(file.lower().endswith(ext.lower()) for ext in extensions)]
         random_files = random.sample(filtered_files, min(num_files, len(filtered_files)))
         return random_files
     except FileNotFoundError:
         print(f"Directory '{directory_path}' not found.")
         return []
+
 
 def main():
 
@@ -373,6 +378,9 @@ def main():
     number_videos = calculate_videos(args, short_lenght, crop_seconds) #number of videos will be need it
     json_filename = args.json_filename
     offline = args.offline
+    desired_extensions = ['.mp4', '.mkv'] #['.mp4', '.mkv', '.webm'] webm small video.
+
+
 
     verbose(args, f"\nAPI Key: {masked_msg(api_key)}")
     verbose(args, f"Channel ID: {masked_msg(channel)}")
@@ -417,16 +425,15 @@ def main():
     with open(json_filename, 'r') as json_file:
         video_info_list = json.load(json_file)
     if download:
-        download_video_and_create_nfo(args, video_info_list, working_directory)
+        download_video_and_create_nfo(args, video_info_list, working_directory, desired_extensions)
 
     print(f"Creating {short_filename}")
-    desired_extension = ".mkv"
 
     number_videos = number_videos
-    random_files = pick_random_files_by_extension(args, working_directory, desired_extension, number_videos)
+    random_files = pick_random_files_by_extension(args, working_directory, desired_extensions, number_videos)
     
     if random_files:
-        verbose(args, f"Randomly selected {desired_extension} files:")
+        verbose(args, f"Randomly selected files:")
         
         # Create a list to save clips
         all_clips = []
@@ -449,7 +456,7 @@ def main():
         print(f"{shorts_directory}/{short_filename} created.")
 
     else:
-        print(f"No {desired_extension} files found in the specified directory.")
+        print(f"No {desired_extensions} files found in the specified directory.")
         sys.exit(1)
 
 
