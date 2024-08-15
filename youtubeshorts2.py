@@ -148,20 +148,22 @@ def download_video_and_create_nfo(args, video_info_list, output_directory):
         #    yt = YouTube(f'https://www.youtube.com/watch?v={video_id}')
         #    stream = yt.streams.get_highest_resolution()
         video_filename = f"{video_id}"
-            #if not check_file_exists(os.path.join(output_directory,video_filename)):
+        mkv_filename = f"{video_id}.mkv"
+        mkv_filepath = os.path.join(output_directory, mkv_filename)
+        if not check_file_exists(mkv_filepath):
             #    print(f"Downloading video {video_filename}")
 
                 # doesn't work, so back to dirty way, call terminal!
                 #stream.download(output_path=output_directory, filename=video_filename)
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        print(f"downloading ({tmp}): {url}")
-        os.system(f"old_dir=$(pwd) && cd $old_dir/{output_directory} && yt-dlp -o {video_filename} {url} && cd $old_dir")
-        tmp += 1
+            url = f"https://www.youtube.com/watch?v={video_id}"
+            print(f"downloading ({tmp}): {url}")
+            os.system(f"yt-dlp -o {mkv_filepath} {url}")
+            tmp += 1
 
 
                 #print(f"Done {video_filename}")
-            #else:
-            #    print(f"{video_filename} exist, skipping")
+        else:
+            print(f"{mkv_filepath} exist, skipping")
         #except Exception as e:
         #    print(f"Error downloading video {video_id}: {str(e)}")
         #    sys.exit()
@@ -178,13 +180,16 @@ def download_video_and_create_nfo(args, video_info_list, output_directory):
         # Write the NFO content to a file
         nfo_filename = f"{video_id}.nfo"
         nfo_filepath = os.path.join(output_directory, nfo_filename)
-        with open(nfo_filepath, 'w', encoding='utf-8') as nfo_file:
-            nfo_file.write(nfo_content)
+        if not check_file_exists(nfo_filepath):
 
-        print(f"Created {nfo_filename}")
+            with open(nfo_filepath, 'w', encoding='utf-8') as nfo_file:
+                nfo_file.write(nfo_content)
 
-        sys.exit()
-        
+            print(f"Created {nfo_filename}")
+        else:
+            print(f"{nfo_filepath} already exist, skipping")
+
+                
 def get_channel_video_count(service, channel_id):
     request = service.channels().list(
         part='statistics',
